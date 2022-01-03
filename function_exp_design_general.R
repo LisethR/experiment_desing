@@ -1,8 +1,8 @@
 # library ----
+library(tidyverse)
 library(dbplyr)
 library(DBI)
 library(odbc)
-library(tidyverse)
 library(nortest)
 library(forcats)
 library(GGally)
@@ -14,13 +14,20 @@ con <- DBI::dbConnect(odbc::odbc(),
                       Database = "wines_data", 
                       Trusted_Connection = "True")
 
-# Return the results for an arbitrary query
+# Return the results for query
 wine <- dbGetQuery(con, "SELECT * FROM winequality") %>%
   as_tibble()
 
-
+# The median for all variables
 median_variable <- function(data, variable){
+  # This function calculated the median for all variables
+  # regarding the quality rating of wine 
+  # and filter of interest variable
   
+  # - data: It's a data frame of SQL query
+  # - variable: filter of interest variable
+  
+  # the median for all variables
   data_wine <- data %>%
     mutate(quality = as.factor(quality))
   
@@ -42,6 +49,8 @@ median_variable <- function(data, variable){
     select(quality,median_value) %>%
     right_join(data_wine, by = 'quality')
   
+  # This is result all variable with the 
+  # median of interest variable as reference 
   with_media_value %>%
     mutate(
       value_category = if_else(with_media_value[names(with_media_value) == variable]>median_value,
@@ -51,8 +60,12 @@ median_variable <- function(data, variable){
   
 }
 
-
+# graph of bar error
 graph_interst <- function(data, variable){
+  # graph of bar error: interest variable regarding 
+  # of categories variables (quality and median of 
+  # interest variable as reference )
+  
   data %>%
     group_by(quality, value_category) %>%
     filter(var == variable) %>%
@@ -67,8 +80,12 @@ graph_interst <- function(data, variable){
   
 }
 
-
+# Is a data frame for apply in the model function
 general_result <- function(data, variable){
+  # - data: It's a data frame of SQL query
+  # - variable: interest variable
+  # - value_category: filter of interest variable
+  
   data %>%
     group_by(quality, value_category) %>%
     filter(var == variable) %>%
@@ -78,10 +95,13 @@ general_result <- function(data, variable){
     select(!c(var,median_value))
 }
 
-
+# select of the sample
 sample_data <- function(data, category,variable){
+  # - data: It's a data frame of SQL query
+  # - variable: interest variable
+  # - category: filter of interest variable  
+  
   data %>%
-    #count(quality, sugar_category, var) %>%
     filter(var == variable, value_category == category) %>%
     select(quality,value_category,value) %>%
     split(.$quality) %>%

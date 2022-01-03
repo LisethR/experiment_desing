@@ -1,3 +1,6 @@
+source('function_exp_design_general.R')
+
+# graph 1: boxplots of the all variables regarding to quality rating
 wine %>%
   mutate(quality = as.factor(quality)) %>%
   gather('var', 'value', 1:11) %>%
@@ -5,12 +8,15 @@ wine %>%
   geom_boxplot() +
   facet_wrap(~var, scales = 'free')
 
+# graph 2: scatter plot of the all variables regarding to quality rating
 ggpairs(wine%>%
           mutate(quality = as.factor(quality)), 
         columns = 1:11, ggplot2::aes(colour=quality)) 
 
+# see all variables
 wine %>% names()
 
+# firt interest variable
 var <- "alcohol"
 
 # ref
@@ -23,7 +29,7 @@ sample_wine <- sample_data(data_wine_var, 'less', var) %>%
     trt = quality,
     bq = value_category)
 
-
+# graph 3: of bar error
 graph_interst(sample_wine %>%
                 rename(
                   quality = trt,
@@ -37,7 +43,7 @@ summary(model)
 # print
 shapiro.test(model$residuals)
 
-# Diagnosticos del modelo
+# Diagnostics of model
 plot(lm(value ~ trt + bq, data = sample_wine))
 
 
