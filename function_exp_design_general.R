@@ -7,6 +7,9 @@ library(nortest)
 library(forcats)
 library(GGally)
 
+# TODO : la funcion median_variable hay que mejorar su tiempo
+# de ejecucion
+
 # conn ----
 con <- DBI::dbConnect(odbc::odbc(), 
                       Driver = "SQL Server", 
@@ -42,21 +45,21 @@ median_variable <- function(data, variable){
                     quality = unique(`.$quality`))
     ) %>%
     map_df(~set_names(.x, seq_along(.x))) %>%
-    rename(var = `1`,
+    rename(var_cat = `1`,
            median_value = `2`,
            quality = `3`) %>%
-    filter(var == variable) %>%
-    select(quality,median_value) %>%
+    filter(var_cat == variable) %>%
+    # select(quality,median_value) %>%
     right_join(data_wine, by = 'quality')
-  
-  # This is result all variable with the 
-  # median of interest variable as reference 
+
+  # This is result all variable with the
+  # median of interest variable as reference
   with_media_value %>%
     mutate(
       value_category = if_else(with_media_value[names(with_media_value) == variable]>median_value,
                                     'greater',
                                     'less')) %>%
-    gather('var', 'value', 3:13)
+    gather('var', 'value',4:14)
   
 }
 
@@ -96,23 +99,29 @@ general_result <- function(data, variable){
 }
 
 # select of the sample
-sample_data <- function(data, category,variable){
-  # - data: It's a data frame of SQL query
-  # - variable: interest variable
-  # - category: filter of interest variable  
+sample_data <- function(data, category, variable){
+  # - data: sample data frame
+  # - variable: interest variable trt
+  # - category: filter of interest variable por bloque  
   
   data %>%
     filter(var == variable, value_category == category) %>%
-    select(quality,value_category,value) %>%
+    select(var_cat, var, quality,value_category,value) %>%
     split(.$quality) %>%
-    map(~ tibble(.$quality,
+    map(~ tibble(
+                 .$var_cat,
+                 .$var,
+                 .$quality,
                  .$value_category,
                  .$value) %>%
           sample_n(size=4,replace=FALSE)
     ) %>%
     map_df(~set_names(.x, seq_along(.x))) %>%
-    rename(quality = `1`,
-           value_category = `2`,
-           value = `3`)
+    rename(
+           var_bloque = `1`,
+           var_tratamiento = `2`,
+           quality = `3`,
+           value_category = `4`,
+           value = `5`)
 }
 
