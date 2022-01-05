@@ -21,6 +21,10 @@ con <- DBI::dbConnect(odbc::odbc(),
 wine <- dbGetQuery(con, "SELECT * FROM winequality") %>%
   as_tibble()
 
+# variables of interest
+var_interest <- wine[wine %>% 
+                       names() != 'quality'] %>% names()
+
 # The median for all variables
 median_variable <- function(data, variable){
   # This function calculated the median for all variables
@@ -125,3 +129,84 @@ sample_data <- function(data, category, variable){
            value = `5`)
 }
 
+# TODO: minizar la funcion y verificar la informacion resultante 
+# nuevamente
+
+# extraccion de la muestra, pero tiene que ser
+# todas las posibles combinaciones sin incluir la misma variable
+# seleccionada como el bloque
+
+sample_prove_function <- function(data_with_median,var_trat){
+  sample_data(data_with_median, 'less', var_trat) %>%
+    rbind(sample_data(data_with_median, 'greater', var_trat)) %>%
+    rename(
+      trt = quality,
+      bq = value_category)
+}
+
+var_quality_select <- function(data_with_var_cat){
+  
+  var_cat <- data_with_var_cat %>% 
+    select(var_cat) %>% 
+    unique() %>% 
+    as.list()
+  
+  all_combination <- var_interest[var_interest != var_cat] %>%
+    map(~sample_prove_function(data_with_var_cat,.))
+  
+  models <- all_combination %>%
+    map(~lm(value ~ trt + bq, data = .x)) %>%
+    map(aov)
+  
+  var_in_model <-all_combination %>%
+    map(~ tibble(.) %>%
+          select(var_bloque, var_tratamiento) %>%
+          unique() %>%
+          rename( trt = var_tratamiento,
+                  bq = var_bloque) %>%
+          gather('term', 'combination')) %>%
+    enframe() %>%
+    unnest()
+  
+  
+  var_bloque <- var_in_model %>%
+    filter(term == 'bq') %>%
+    select(combination) %>%
+    unique() %>%
+    as.list()
+  
+  all_summaries <- var_in_model %>%
+    mutate(var_bloq = var_bloque) %>%
+    unnest() %>%
+    cbind(
+      models %>%
+        map(tidy) %>%
+        map(~tibble(.) %>%
+              select(p.value) %>%
+              filter(!is.na(p.value)))  %>%
+        map_df(~.)
+    )
+  
+  norm_residuals <- models %>%
+    map(residuals) %>%
+    map(shapiro.test) %>%
+    map(~.$p.value) %>%
+    enframe() %>%
+    unnest() %>%
+    mutate(
+      h0_residual = if_else(value < .05,
+                            'no norm',
+                            'norm')
+    ) %>%
+    filter(h0_residual == 'norm') %>%
+    select(!value)
+  
+  left_join(all_summaries %>%
+              mutate(
+                h0_param = if_else(p.value < .05,
+                                   'sign',
+                                   'no sign')),
+            norm_residuals, by = 'name') %>%
+    as_tibble()
+  
+}
