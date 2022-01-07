@@ -1,47 +1,51 @@
 source('function_exp_design_general.R')
 library(broom)
 
+wine %>% names()
 # graph ----
 # graph 1: boxplots of the all variables regarding to quality rating
-wine %>%
-  mutate(quality = as.factor(quality)) %>%
-  gather('var', 'value', 1:11) %>%
-  ggplot(aes(x= var, y=value, color = quality)) +
+sample_data_by_name <- sample_data(wine) 
+
+sample_data_by_name %>%
+  ggplot(aes(x= name, y=value, color = quality)) +
   geom_boxplot() +
-  facet_wrap(~var, scales = 'free')
+  facet_wrap(~name, scales = 'free')
 
-# graph 2: scatter plot of the all variables regarding to quality rating
-ggpairs(wine%>%
-          mutate(quality = as.factor(quality)), 
-        columns = 1:11, ggplot2::aes(colour=quality,alpha = .3)) 
+ggpairs(sample_data_by_name %>%
+          pivot_wider(quality,name) %>%
+          unnest(), 
+        columns = 2:12, ggplot2::aes(colour=quality,alpha = .3)) 
 
-# see all variables ----
-wine %>% names()
 
+# show the most important result of all models of all possible combination
+all_median <- var_interest %>% 
+  map(~median_variable(sample_data_by_name,.))
+
+all_median %>%
+  map(~general_models(.)) 
+
+# detail of the most important combination
 # firt interest variable
-var_quality <- "density"
+var_quality <- "citric_acid"
 var_trt <- "alcohol"
 
 # ref
-data_wine_var <- median_variable(wine,var_quality)
-
-# for the balance sample
-sample_wine <- sample_data(data_wine_var, 'less', var_trt) %>%
-  rbind(sample_data(data_wine_var, 'greater', var_trt)) %>%
-  rename(
-    trt = quality,
-    bq = value_category)
+data_wine_var <- median_variable(sample_data_by_name,var_quality)
 
 # the last graph and results ----
 # graph 3: of bar error
-graph_interst(sample_wine %>%
-                rename(
-                  quality = trt,
-                  value_category = bq
-                ),var)
+graph_interst(data_wine_var,var_trt)
 
 # print
-result <- lm(value ~ trt + bq, data = sample_wine)
+sample_variables_int <- data_wine_var %>%
+                          as.data.frame() %>%
+                          filter(var == var_trt) %>%
+                          select(quality, value_category, var, value) 
+  
+sample_variables_int %>%
+  count(quality, value_category)
+
+result <- lm(value ~ value_category + quality, data = sample_variables_int)
 model <- aov(result)
 
 # resultado que imprimire sobre los que
@@ -50,21 +54,17 @@ summary(model)
 
 # print
 shapiro.test(model$residuals)
+bartlett.test(sample_variables_int$value, sample_variables_int$quality)
+bartlett.test(sample_variables_int$value, sample_variables_int$value_category)
+
 # Diagnostics of model
 plot(lm(value ~ trt + bq, data = sample_wine))
 # TODO : cambiar la grafica
 
 
-# generalizacion de la prueba ----
-all_median <- var_interest %>% 
-                map(~median_variable(wine,.))
 
-# example selection
-all_median %>%
-  map(~var_quality_select(.)) %>% 
-   enframe() %>%
-   unnest() %>%
-  filter(var_bloq == 'residual_sugar',
-         name1 == 8)
-  
-  
+
+
+
+
+
