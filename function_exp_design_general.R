@@ -7,8 +7,14 @@ library(nortest)
 library(forcats)
 library(GGally)
 
-# TODO : la funcion median_variable hay que mejorar su tiempo
+# TODO: la funcion median_variable hay que mejorar su tiempo
 # de ejecucion
+
+# TODO: minizar la funcion y verificar la informacion resultante 
+# nuevamente
+
+# TODO: cambiar el nombre de algunas de las funciones, porque
+# no van acorde a su propio proceso.
 
 # conn ----
 con <- DBI::dbConnect(odbc::odbc(), 
@@ -129,14 +135,13 @@ sample_data <- function(data, category, variable){
            value = `5`)
 }
 
-# TODO: minizar la funcion y verificar la informacion resultante 
-# nuevamente
-
-# extraccion de la muestra, pero tiene que ser
-# todas las posibles combinaciones sin incluir la misma variable
-# seleccionada como el bloque
-
+# extract of the sample
 sample_prove_function <- function(data_with_median,var_trat){
+  # extract of the sample and show of data frame associate with
+  # the bloq variable like a second variable category
+  
+  # in this function, it's applicate of function sample data
+  
   sample_data(data_with_median, 'less', var_trat) %>%
     rbind(sample_data(data_with_median, 'greater', var_trat)) %>%
     rename(
@@ -144,49 +149,64 @@ sample_prove_function <- function(data_with_median,var_trat){
       bq = value_category)
 }
 
+# show the most important result of all models of all possible combination
 var_quality_select <- function(data_with_var_cat){
+  # data_with_var_cat: all data, but in this function
+  # calculte of sample of sample_prove_function and finally, 
+  # calcultate all 
   
+  # var cat: show of all variables in data frame
   var_cat <- data_with_var_cat %>% 
     select(var_cat) %>% 
     unique() %>% 
     as.list()
   
+  # all_combination: all possible combination between 
+  # of the variable category selection and the variable 
+  # tratamient disagregate by quality rating
   all_combination <- var_interest[var_interest != var_cat] %>%
     map(~sample_prove_function(data_with_var_cat,.))
   
+  # models: all model result to all combination.
   models <- all_combination %>%
     map(~lm(value ~ trt + bq, data = .x)) %>%
     map(aov)
   
+  # var_in_model :auxialy variable, this set have all possible combination
+  # between two variables (variable bloq and variable tratamient)
   var_in_model <-all_combination %>%
     map(~ tibble(.) %>%
           select(var_bloque, var_tratamiento) %>%
           unique() %>%
-          rename( trt = var_tratamiento,
-                  bq = var_bloque) %>%
+           rename( trt = var_tratamiento,
+                   bq = var_bloque) %>%
           gather('term', 'combination')) %>%
     enframe() %>%
     unnest()
   
-  
+  # var_bloque: only variable considerer as bloq
   var_bloque <- var_in_model %>%
     filter(term == 'bq') %>%
     select(combination) %>%
     unique() %>%
     as.list()
-  
+
+  # all_summaries: all summary of models of the all combination
+  # only p value, because I considerer the most important value.
   all_summaries <- var_in_model %>%
-    mutate(var_bloq = var_bloque) %>%
+    mutate(var_bloq = var_bloque) #%>%
     unnest() %>%
     cbind(
       models %>%
         map(tidy) %>%
-        map(~tibble(.) %>%
+        map(~tibble(.)) %>%
               select(p.value) %>%
-              filter(!is.na(p.value)))  %>%
+              filter(!is.na(p.value))  %>%
         map_df(~.)
     )
   
+  # norm_residuals: It's p value of the residual of models for 
+  #  each combination
   norm_residuals <- models %>%
     map(residuals) %>%
     map(shapiro.test) %>%
@@ -200,7 +220,9 @@ var_quality_select <- function(data_with_var_cat){
     ) %>%
     filter(h0_residual == 'norm') %>%
     select(!value)
-  
+
+  # This is of all result, I showed all combination with p-value
+  # for with each param and residual values in each models.
   left_join(all_summaries %>%
               mutate(
                 h0_param = if_else(p.value < .05,

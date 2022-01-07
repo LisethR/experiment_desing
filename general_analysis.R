@@ -59,8 +59,12 @@ plot(lm(value ~ trt + bq, data = sample_wine))
 all_median <- var_interest %>% 
                 map(~median_variable(wine,.))
 
-
+# example selection
 all_median %>%
-  map(~var_quality_select(.)) 
+  map(~var_quality_select(.)) %>% 
+   enframe() %>%
+   unnest() %>%
+  filter(var_bloq == 'residual_sugar',
+         name1 == 8)
   
   
