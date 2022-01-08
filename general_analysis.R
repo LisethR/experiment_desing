@@ -1,5 +1,4 @@
-source('function_exp_design_general.R')
-library(broom)
+source('utils/tools.R')
 
 wine %>% names()
 # graph ----
@@ -16,18 +15,18 @@ ggpairs(sample_data_by_name %>%
           unnest(), 
         columns = 2:12, ggplot2::aes(colour=quality,alpha = .3)) 
 
-
 # show the most important result of all models of all possible combination
 all_median <- var_interest %>% 
-  map(~median_variable(sample_data_by_name,.))
+  map(~median_variable(sample_data_by_name,.))%>%
+  suppressMessages()
 
 all_median %>%
   map(~general_models(.)) 
 
 # detail of the most important combination
 # firt interest variable
-var_quality <- "citric_acid"
-var_trt <- "alcohol"
+var_quality <- "pH"
+var_trt <- "volatile_acidity"
 
 # ref
 data_wine_var <- median_variable(sample_data_by_name,var_quality)
@@ -60,7 +59,6 @@ bartlett.test(sample_variables_int$value, sample_variables_int$value_category)
 # Diagnostics of model
 plot(lm(value ~ trt + bq, data = sample_wine))
 # TODO : cambiar la grafica
-
 
 
 

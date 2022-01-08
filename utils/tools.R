@@ -6,6 +6,7 @@ library(odbc)
 library(nortest)
 library(forcats)
 library(GGally)
+library(broom)
 
 # conn ----
 con <- DBI::dbConnect(odbc::odbc(), 
@@ -110,11 +111,14 @@ general_models <- function(data_with_var_cat){
   # tratamient disagregate by quality rating
   all_combination <- data_with_var_cat %>%
     split(.$var)
-  
+
   models <- all_combination %>%
+     map(~ tibble(.) %>%
+           rename( trt = quality,
+                   bq = value_category)) %>%
     map(~lm(value ~ bq + trt, data = .x)) %>%
     map(aov)
-  
+
   # var_in_model :auxialy variable, this set have all possible combination
   # between two variables (variable bloq and variable tratamient)
   var_in_model <-all_combination %>%
@@ -134,7 +138,7 @@ general_models <- function(data_with_var_cat){
     select(combination) %>%
     unique() %>%
     as.list()
-  
+
   # all_summaries: all summary of models of the all combination
   # only p value, because I considerer the most important value.
   all_summaries <- var_in_model %>%
@@ -152,7 +156,7 @@ general_models <- function(data_with_var_cat){
                              'sign',
                              'no sign'))
     )
-  
+
   # norm_residuals: It's p value of the residual of models for
   #  each combination
   norm_residuals <- models %>%
@@ -168,13 +172,13 @@ general_models <- function(data_with_var_cat){
     ) %>%
     filter(h0_residual == 'norm') %>%
     select(!value)
-  
+
   #norm_residuals
   # This is of all result, I showed all combination with p-value
   # for with each param and residual values in each models.
   left_join(all_summaries,
             norm_residuals, by = 'name') %>%
-    as_tibble() %>% 
+    as_tibble() %>%
     filter(!is.na(h0_residual)) %>%
     select(!c(var_bloq,name,df))
 }
