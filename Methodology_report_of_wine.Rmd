@@ -7,7 +7,7 @@ output: html_document
 library(DT)
 #library(kableExtra)
 knitr::opts_chunk$set(echo = TRUE)
-source('utils/tools.R')
+source('utils_exp_d/tools.R')
 sample_data_by_name <- sample_data(wine) 
 
 ```
